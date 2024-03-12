@@ -10,6 +10,8 @@
 #define BOSS_SPEED 3
 #define BOSS_HP 100 
 
+#define MAX_BULLET_BOSS 7
+
 
 
 class BossObject : public BaseObject
@@ -29,7 +31,10 @@ public:
 	void Set_bullets(std::vector<Bullet*>bullets_, int i) { bullets[i] = bullets_; }
 	std::vector<Bullet*> Get_bullets(int i) { return bullets[i]; }
 
-	void Init_bullet(std::vector<Bullet*>& bullets_, int x_val_, int y_val_);
+	void Init_bullet_(std::vector<Bullet*>& bullets_, int x_val_, int y_val_, int w, int h);
+	void Init_bullet();
+
+	void check_bullet_out();
 
 protected:
 	int x_val;
@@ -37,6 +42,7 @@ protected:
 	int step = BOSS_SPEED;
 
 
+	Uint32 lastBulletTime;
 
 
 	std::vector<std::vector<Bullet*>> bullets;
