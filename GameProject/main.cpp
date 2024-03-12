@@ -496,6 +496,7 @@ void InitEnemy_Bullet(std::vector<Enemy*>& enemies)
 void Init_boss()
 {
     Boss_enemy->LoadImg("img/boss1.png", g_screen);
+    //Boss_enemy->Init_bullet();
 }
 void remove_meteorite(int idx)
 {
@@ -831,6 +832,7 @@ int main(int argc, char* argv[]){
 
     Init_boss();
 
+
     bool is_quit = false; 
     bool isPaused = true;
     int mouseX, mouseY;
@@ -1005,6 +1007,7 @@ int main(int argc, char* argv[]){
             if (!isPaused)
             {
                 
+
                 Init_meteorite();
                 respawnTime = SDL_GetTicks();
                 respawnUFOTime = SDL_GetTicks();
@@ -1094,8 +1097,28 @@ int main(int argc, char* argv[]){
                 g_player.update();
 
                 //enemy
+                //boss
                 Boss_enemy->update();
                 Boss_enemy->SetRect(BOSS_WITDH, BOSS_HEIGHT);
+                for (int i = 0; i < MAX_BULLET_BOSS; i++)
+                {
+                    for (int bl = 0; bl < Boss_enemy->Get_bullets(i).size(); bl++)
+                    {
+                        std::vector <Bullet*> bullets = Boss_enemy->Get_bullets(i);
+                        Bullet* bullet = bullets.at(bl);
+                        
+                        if ( i == 0 || i == 3 || i == 4) bullet->set_is_loaded(bullet->LoadImg("img/enemy/laser.png", g_screen));
+                        else bullet->set_is_loaded(bullet->LoadImg("img/enemy/ice_bullet.png", g_screen));
+
+                        if (bullet != NULL)
+                        {
+                            if (bullet->get_is_move())
+                            {
+                                bullet->update_enemy();
+                            }
+                        }
+                    }
+                }
 
                 for (int mt = 0;mt < meteorites.size(); mt++)
                 {
@@ -1178,7 +1201,23 @@ int main(int argc, char* argv[]){
 
                 // render enemy
                 Boss_enemy->Render(g_screen, NULL);
-
+                for (int i = 0; i < MAX_BULLET_BOSS; i++)
+                {
+                    for (int bl = 0; bl < Boss_enemy->Get_bullets(i).size(); bl++)
+                    {
+                        std::vector <Bullet*> bullets = Boss_enemy->Get_bullets(i);
+                        Bullet* bullet = bullets.at(bl);
+                        if (bullet != NULL)
+                        {
+                            if (bullet->get_is_move())
+                            {
+                                bullet->Render(g_screen, NULL);
+                            }
+                        }
+                    }
+                }
+                Boss_enemy->check_bullet_out();
+                Boss_enemy->Init_bullet();
                 for (int mt = 0;mt < meteorites.size(); mt++)
                 {
                     Enemy* meteorite = meteorites.at(mt);
