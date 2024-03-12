@@ -19,6 +19,10 @@ Uint32 start_respawnTime;
 Uint32 respawnUFOTime;
 Uint32 start_respawnUFOTime;
 
+Uint32 respawnBossTime;
+Uint32 start_respawnBossTime;
+
+
 Uint32 start_speedTime;
 Uint32 current_speedTime;
 Uint32 elapsed_speedTime;
@@ -27,6 +31,8 @@ Uint32 elapsed_speedTime;
 Uint32 start_slowedTime;
 Uint32 current_slowedTime;
 Uint32 elapsed_slowedTime;
+
+
 
 
 
@@ -381,7 +387,7 @@ void update_enemy(std::vector<Enemy*>& enemies, const int w , const int h)
 
                     if (bullet->get_is_move())
                     {
-                        bullet->update_enemy(   );
+                        bullet->update_enemy();
                     }
                     enemy->check_bullet_out();
                 }
@@ -496,7 +502,8 @@ void InitEnemy_Bullet(std::vector<Enemy*>& enemies)
 void Init_boss()
 {
     Boss_enemy->LoadImg("img/boss1.png", g_screen);
-    //Boss_enemy->Init_bullet();
+    //Boss_enemy->SetRect();
+
 }
 void remove_meteorite(int idx)
 {
@@ -526,6 +533,70 @@ bool checkCollision(SDL_Rect a, SDL_Rect b) {
     }
 
     return false; // Không có va chạm
+}
+
+void Collision_p_b()
+{
+    if (Boss_enemy->get_is_alive())
+    {
+
+        // bullet player - boss
+        for (int i = 0; i <= g_player.get_level(); i++)
+        {
+            std::vector<Bullet*> bullets = g_player.Get_bullets(i);
+            for (int bl = 0; bl < bullets.size(); bl++)
+            {
+                Bullet* bullet = bullets.at(bl);
+                bool check = checkCollision(bullet->GetRect(), Boss_enemy->GetRect());
+                if (check)
+                {
+                    Boss_enemy->set_HP(Boss_enemy->get_HP() - BULLET_DMG);
+                    bullet = NULL;
+                    bullets.erase(bullets.begin() + bl);
+                    g_player.Set_bullets(bullets, i);
+                }
+                if (Boss_enemy->get_HP() <= 0)
+                {
+                    score_ += 10;
+                    delete Boss_enemy;
+                    Boss_enemy = new BossObject();
+                    Boss_enemy->set_is_alive(false);
+                    start_respawnBossTime = SDL_GetTicks();
+
+                    //Boss_enemy->reset_boss();
+                }
+            }
+        }
+
+        // bullet boss - player
+        for (int i = 0; i < MAX_BULLET_BOSS; i++)
+        {
+            std::vector<Bullet*> bullets = Boss_enemy->Get_bullets(i);
+            for (int bl = 0; bl < bullets.size(); bl++)
+            {
+                Bullet* bullet = bullets.at(bl);
+                bool check = checkCollision(bullet->GetRect(), g_player.GetRect());
+                if (check)
+                {
+                    Mix_PlayChannel(-1, boomSound, 0);
+
+                    if (!g_player.get_shield())
+                    {
+                        if (HP.size() > 0) HP.pop_back();
+                        if (g_player.get_level() > 0)
+                        {
+                            g_player.set_level(g_player.get_level() - 1);
+                            g_player.Reset_bullet();
+                        }
+                    }
+                    bullet = NULL;
+                    bullets.erase(bullets.begin() + bl);
+                    Boss_enemy->Set_bullets(bullets, i);
+                }
+            }
+        }
+    }
+
 }
 
 void Collision_p_e(std::vector<Enemy*>&enemies)
@@ -677,8 +748,7 @@ void checkCollision_play()
     Collision_p_e(s_enemies);
     Collision_p_e(m_enemies);
     Collision_p_e(ufo_enemies);
-
-
+    Collision_p_b();
 }
 
 
@@ -777,6 +847,11 @@ void reset()
         delete meteorites[mt];
     }
     meteorites.clear();
+    delete Boss_enemy;
+    Boss_enemy = new BossObject();
+    Init_boss();
+    Boss_enemy->reset_boss();
+
     Init_hp();
     Init_hpitem();
     Init_upgrade_item();
@@ -789,8 +864,10 @@ void reset()
 
     start_respawnTime = SDL_GetTicks();
     start_respawnUFOTime = SDL_GetTicks();
+    start_respawnBossTime = SDL_GetTicks();
     respawnTime = 0;
     respawnUFOTime = 0;
+    respawnBossTime = 0;
 
 
     score_ = 0;
@@ -798,7 +875,7 @@ void reset()
     g_background2.SetRect(SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     g_background3.SetRect(2 * SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     g_background4.SetRect(3 * SCREEN_WIDTH, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-
+    //SDL_Delay(250);
 }
 
 // MAIN
@@ -830,7 +907,7 @@ int main(int argc, char* argv[]){
 
     Text_name_game();
 
-    Init_boss();
+    //Init_boss();
 
 
     bool is_quit = false; 
@@ -882,6 +959,7 @@ int main(int argc, char* argv[]){
                     {
                         start_respawnTime = SDL_GetTicks();
                         start_respawnUFOTime = SDL_GetTicks();
+                        start_respawnBossTime = SDL_GetTicks();
                         isPaused = false;
                         on_menu = false;
                         SDL_RenderClear(g_screen);
@@ -1006,11 +1084,12 @@ int main(int argc, char* argv[]){
         else {
             if (!isPaused)
             {
-                
 
                 Init_meteorite();
                 respawnTime = SDL_GetTicks();
                 respawnUFOTime = SDL_GetTicks();
+                respawnBossTime = SDL_GetTicks();
+
                 if (respawnTime - start_respawnTime > 15000)
                 {
                     InitEnemy_M();
@@ -1021,8 +1100,14 @@ int main(int argc, char* argv[]){
                     InitEnemy_UFO();
                     InitEnemy_Bullet(ufo_enemies);
                 }
-                
+                if (respawnBossTime - start_respawnBossTime > 10000)
+                {
+                    Init_boss();
+                    Boss_enemy->Init_bullet();
+                    Boss_enemy->set_is_alive(true);
 
+                }
+                
                 InitEnemy();
                 InitEnemy_Bullet(s_enemies);
 
@@ -1098,27 +1183,33 @@ int main(int argc, char* argv[]){
 
                 //enemy
                 //boss
-                Boss_enemy->update();
-                Boss_enemy->SetRect(BOSS_WITDH, BOSS_HEIGHT);
-                for (int i = 0; i < MAX_BULLET_BOSS; i++)
+                if (Boss_enemy->get_is_alive())
                 {
-                    for (int bl = 0; bl < Boss_enemy->Get_bullets(i).size(); bl++)
+                    Boss_enemy->update();
+                    Boss_enemy->SetRect();
+                    for (int i = 0; i < MAX_BULLET_BOSS; i++)
                     {
-                        std::vector <Bullet*> bullets = Boss_enemy->Get_bullets(i);
-                        Bullet* bullet = bullets.at(bl);
-                        
-                        if ( i == 0 || i == 3 || i == 4) bullet->set_is_loaded(bullet->LoadImg("img/enemy/laser.png", g_screen));
-                        else bullet->set_is_loaded(bullet->LoadImg("img/enemy/ice_bullet.png", g_screen));
-
-                        if (bullet != NULL)
+                        for (int bl = 0; bl < Boss_enemy->Get_bullets(i).size(); bl++)
                         {
-                            if (bullet->get_is_move())
+                            std::vector <Bullet*> bullets = Boss_enemy->Get_bullets(i);
+                            Bullet* bullet = bullets.at(bl);
+
+                            if (i == 0 || i == 3 || i == 4) bullet->set_is_loaded(bullet->LoadImg("img/enemy/laser.png", g_screen));
+                            else bullet->set_is_loaded(bullet->LoadImg("img/enemy/ice_bullet.png", g_screen));
+
+                            if (bullet != NULL)
                             {
-                                bullet->update_enemy();
+                                if (bullet->get_is_move())
+                                {
+                                    bullet->update_enemy();
+                                }
                             }
                         }
                     }
                 }
+                
+
+                
 
                 for (int mt = 0;mt < meteorites.size(); mt++)
                 {
@@ -1131,7 +1222,7 @@ int main(int argc, char* argv[]){
                 update_enemy(m_enemies, ENEMY_MEDIUM_WIDTH, ENEMY_MEDIUM_HEIGHT);
                 update_enemy(ufo_enemies, UFO_WIDTH, UFO_HEIGHT);
 
-
+                //background
                 g_background.SetRect(g_background.GetRect().x- map_sp, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
                 g_background2.SetRect(g_background2.GetRect().x - map_sp, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
                 g_background3.SetRect(g_background3.GetRect().x - map_sp, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -1200,24 +1291,26 @@ int main(int argc, char* argv[]){
 
 
                 // render enemy
-                Boss_enemy->Render(g_screen, NULL);
-                for (int i = 0; i < MAX_BULLET_BOSS; i++)
+                if (Boss_enemy->get_is_alive())
                 {
-                    for (int bl = 0; bl < Boss_enemy->Get_bullets(i).size(); bl++)
+                    Boss_enemy->Render(g_screen, NULL);
+                    for (int i = 0; i < MAX_BULLET_BOSS; i++)
                     {
-                        std::vector <Bullet*> bullets = Boss_enemy->Get_bullets(i);
-                        Bullet* bullet = bullets.at(bl);
-                        if (bullet != NULL)
+                        for (int bl = 0; bl < Boss_enemy->Get_bullets(i).size(); bl++)
                         {
-                            if (bullet->get_is_move())
+                            std::vector <Bullet*> bullets = Boss_enemy->Get_bullets(i);
+                            Bullet* bullet = bullets.at(bl);
+                            if (bullet != NULL)
                             {
-                                bullet->Render(g_screen, NULL);
+                                if (bullet->get_is_move())
+                                {
+                                    bullet->Render(g_screen, NULL);
+                                }
                             }
                         }
                     }
+                    Boss_enemy->check_bullet_out();
                 }
-                Boss_enemy->check_bullet_out();
-                Boss_enemy->Init_bullet();
                 for (int mt = 0;mt < meteorites.size(); mt++)
                 {
                     Enemy* meteorite = meteorites.at(mt);
@@ -1276,13 +1369,9 @@ int main(int argc, char* argv[]){
 
 
 
-
-
-
-
-
-
-
+// Game Space War
+// Nguyễn Trung Kiên - 23021590 - UET - VNU
+// End
 
 
 
